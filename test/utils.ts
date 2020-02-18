@@ -3,7 +3,11 @@ import { NodeType } from 'rrweb-snapshot';
 import { assert } from 'chai';
 import { EventType, IncrementalSource, eventWithTime } from '../src/types';
 
-function matchSnapshot(actual: string, testFile: string, testTitle: string) {
+export function matchSnapshot(
+  actual: string,
+  testFile: string,
+  testTitle: string,
+) {
   const snapshotState = new SnapshotState(testFile, {
     updateSnapshot: process.env.SNAPSHOT_UPDATE ? 'all' : 'new',
   });
