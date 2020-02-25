@@ -30,37 +30,17 @@ describe('unpack', () => {
   });
 
   it('stop on unknown data format', () => {
-    expect(() => unpack('{}')).to.throw('Unknown data format.');
-  });
-
-  it('stop on unmatched packer', () => {
-    expect(() =>
-      unpack(
-        JSON.stringify({
-          meta: {
-            packer: 'dummy',
-          },
-        }),
-      ),
-    ).to.throw('These events were not packed by the pako packer.');
-  });
-
-  it('stop on unmatched packer version', () => {
-    expect(() =>
-      unpack(
-        JSON.stringify({
-          meta: {
-            packer: 'pako',
-            version: 2,
-          },
-        }),
-      ),
-    ).to.throw(/incompatible with current version/);
+    expect(() => unpack('[""]')).to.throw('');
   });
 
   it('can unpack packed data', () => {
     const packedData = pack(events);
     const result = unpack(packedData);
-    expect(result).to.deep.equal(events);
+    expect(result).to.deep.equal(
+      events.map(e => ({
+        ...e,
+        p: 'p1',
+      })),
+    );
   });
 });

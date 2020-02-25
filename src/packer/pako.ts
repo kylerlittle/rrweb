@@ -1,46 +1,57 @@
 /* tslint:disable: no-console */
 import { deflate, inflate } from 'pako';
 import { eventWithTime } from '../types';
-import { Packer, PackedData } from './base';
+import { PackFn, UnpackFn, eventWithTimeAndPacker } from './base';
 
-export class PakoPacker implements Packer {
-  public version = 1;
+const VERSION = 1;
+const PACKER = 'p';
+const MARK = `${PACKER}${VERSION}`;
 
-  public pack(events: eventWithTime[]): string {
-    const packedString = deflate(JSON.stringify(events), { to: 'string' });
-    const data: PackedData<string> = {
-      meta: {
-        packer: 'pako',
-        version: this.version,
-      },
-      data: packedString,
-    };
-    return JSON.stringify(data);
+export const pack: PackFn = (events: eventWithTime[]): string => {
+  return JSON.stringify(
+    events.map(e => {
+      const _e: eventWithTimeAndPacker = {
+        ...e,
+        p: MARK,
+      };
+      return deflate(JSON.stringify(_e));
+    }),
+  );
+};
+
+export const unpack: UnpackFn = (raw: string): eventWithTime[] => {
+  if (Array.isArray(raw)) {
+    // unpacking unpacked data, maybe legacy events
+    console.info('unpacking unpacked data...');
+    return raw;
   }
-
-  public unpack(raw: string): eventWithTime[] {
-    if (Array.isArray(raw)) {
-      // unpacking unpacked data, maybe legacy events
-      console.info('unpacking unpacked data...');
-      return raw;
-    }
-    const data: PackedData<string> = JSON.parse(raw);
-    if (!data.meta && Array.isArray(data)) {
-      console.info('unpacking unpacked data...');
-      return data;
-    }
-    if (!data.meta) {
-      throw new Error('Unknown data format.');
-    }
-    if (data.meta.packer !== 'pako') {
-      console.info(data.meta);
-      throw new Error('These events were not packed by the pako packer.');
-    }
-    if (data.meta.version !== this.version) {
-      throw new Error(
-        `These events were packed with version ${data.meta.version} which is incompatible with current version ${this.version}.`,
-      );
-    }
-    return JSON.parse(inflate(data.data, { to: 'string' }));
+  const data: string[] | eventWithTime[] = JSON.parse(raw);
+  if (!data.length) {
+    return [];
   }
-}
+  if (
+    data.every(
+      (item: string | eventWithTime) =>
+        typeof item === 'object' && 'timestamp' in item,
+    )
+  ) {
+    // unpacking unpacked data, maybe legacy events
+    console.info('unpacking unpacked data...');
+    return data as eventWithTime[];
+  }
+  let firstEvent!: eventWithTimeAndPacker;
+  try {
+    firstEvent = JSON.parse(inflate(data[0] as string, { to: 'string' }));
+  } catch (error) {
+    console.error(error);
+    throw new Error('Unknown data format.');
+  }
+  if (firstEvent.p !== MARK) {
+    throw new Error(
+      `These events were packed with packer ${firstEvent.p} which is incompatible with current packer ${MARK}.`,
+    );
+  }
+  return (data as string[]).map(item => {
+    return JSON.parse(inflate(item, { to: 'string' }));
+  });
+};
