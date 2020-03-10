@@ -37,7 +37,7 @@ const REPLAY_CONSOLE_PREFIX = '[replayer]';
 
 export class Replayer {
   public wrapper: HTMLDivElement;
-  public iframe: HTMLIFrameElement;
+  public document: Document;
 
   public timer: Timer;
 
@@ -180,24 +180,18 @@ export class Replayer {
   }
 
   private setupDom() {
-    this.wrapper = document.createElement('div');
-    this.wrapper.classList.add('replayer-wrapper');
-    this.config.root.appendChild(this.wrapper);
-
+    this.document = window.document;
+    this.document.body.setAttribute('sandbox', 'allow-same-origin');
+    this.document.body.setAttribute('scrolling', 'no');
+    this.document.body.setAttribute('style', 'pointer-events: none');
     this.mouse = document.createElement('div');
     this.mouse.classList.add('replayer-mouse');
-    this.wrapper.appendChild(this.mouse);
-
-    this.iframe = document.createElement('iframe');
-    this.iframe.setAttribute('sandbox', 'allow-same-origin');
-    this.iframe.setAttribute('scrolling', 'no');
-    this.iframe.setAttribute('style', 'pointer-events: none');
-    this.wrapper.appendChild(this.iframe);
+    this.document.body.appendChild(this.mouse);
   }
 
   private handleResize(dimension: viewportResizeDimention) {
-    this.iframe.width = `${dimension.width}px`;
-    this.iframe.height = `${dimension.height}px`;
+    this.document.body.style.width = `${dimension.width}px`;
+    this.document.body.style.height = `${dimension.height}px`;
   }
 
   // TODO: add speed to mouse move timestamp calculation
@@ -234,7 +228,7 @@ export class Replayer {
       case EventType.FullSnapshot:
         castFn = () => {
           this.rebuildFullSnapshot(event);
-          this.iframe.contentWindow!.scrollTo(event.data.initialOffset);
+          this.document.body!.scrollTo(event.data.initialOffset);
         };
         break;
       case EventType.IncrementalSnapshot:
@@ -297,9 +291,9 @@ export class Replayer {
       );
     }
     this.missingNodeRetryMap = {};
-    mirror.map = rebuild(event.data.node, this.iframe.contentDocument!)[1];
+    mirror.map = rebuild(event.data.node, this.document!)[1];
     const styleEl = document.createElement('style');
-    const { documentElement, head } = this.iframe.contentDocument!;
+    const { documentElement, head } = this.document!;
     documentElement!.insertBefore(styleEl, head);
     const injectStylesRules = getInjectStyleRules(
       this.config.blockClass,
@@ -315,7 +309,7 @@ export class Replayer {
    * pause when loading style sheet, resume when loaded all timeout exceed
    */
   private waitForStylesheetLoad() {
-    const { head } = this.iframe.contentDocument!;
+    const { head } = this.document!;
     if (head) {
       const unloadSheets: Set<HTMLLinkElement> = new Set();
       let timer: number;
@@ -381,7 +375,7 @@ export class Replayer {
           }
           const target = buildNodeWithSN(
             mutation.node,
-            this.iframe.contentDocument!,
+            this.document!,
             mirror.map,
             true,
           ) as Node;
@@ -547,8 +541,8 @@ export class Replayer {
         if (!target) {
           return this.debugNodeNotFound(d, d.id);
         }
-        if ((target as Node) === this.iframe.contentDocument) {
-          this.iframe.contentWindow!.scrollTo({
+        if ((target as Node) === this.document) {
+          this.document.body!.scrollTo({
             top: d.y,
             left: d.x,
             behavior: isSync ? 'auto' : 'smooth',
@@ -680,8 +674,8 @@ export class Replayer {
   }
 
   private hoverElements(el: Element) {
-    this.iframe
-      .contentDocument!.querySelectorAll('.\\:hover')
+    this.document
+      .body.querySelectorAll('.\\:hover')
       .forEach(hoveredEl => {
         hoveredEl.classList.remove(':hover');
       });
