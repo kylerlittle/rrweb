@@ -363,3 +363,4 @@ export enum ReplayerEvents {
   MouseInteraction = 'mouse-interaction',
   EventCast = 'event-cast',
 }
+export {};
